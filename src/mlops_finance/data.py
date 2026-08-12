@@ -5,7 +5,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-FEATURES = ["amount", "merchant_risk", "customer_age", "velocity_24h"]
+from .features import RAW_FEATURES
+
+FEATURES = RAW_FEATURES
 
 
 def make_data(

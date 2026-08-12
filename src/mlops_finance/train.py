@@ -17,7 +17,7 @@ from sklearn.metrics import (
 from sklearn.model_selection import train_test_split
 
 from .config import settings
-from .data import FEATURES
+from .features import MODEL_FEATURES, build_features
 from .validation import validate_training_data
 
 TEST_SIZE = 0.2
@@ -35,11 +35,12 @@ def train(path: str = "data/transactions.csv", output: str | None = None) -> flo
     # Read the prepared training dataset. Complexity: O(n), one pass over rows.
     frame = pd.read_csv(path)
     validate_training_data(frame)
+    feature_frame = build_features(frame)
 
     # Split features (X) from label (y). DSA: DataFrame column selection uses indexed
     # column lookup, then creates tabular arrays for model training.
     x_train, x_test, y_train, y_test = train_test_split(
-        frame[FEATURES],
+        feature_frame,
         frame["fraud"],
         test_size=TEST_SIZE,
         random_state=RANDOM_STATE,
@@ -67,7 +68,7 @@ def train(path: str = "data/transactions.csv", output: str | None = None) -> flo
         mlflow.log_params(
             {
                 "dataset_path": path,
-                "features": ",".join(FEATURES),
+                "features": ",".join(MODEL_FEATURES),
                 "label": "fraud",
                 "model_type": type(model).__name__,
                 "max_iter": MAX_ITER,
