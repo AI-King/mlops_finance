@@ -38,6 +38,18 @@ uvicorn mlops_finance.api:app --reload
 
 Run `docker compose up --build` for PostgreSQL, MLflow, API, Prometheus, and Grafana. API: `localhost:8000`; MLflow: `localhost:5000`; Grafana: `localhost:3000` (`admin/admin`).
 
+Docker Compose uses its own persisted MLflow store in `mlflow-docker/`. After
+starting Compose for the first time, register a champion model in that store:
+
+```powershell
+$env:MLFLOW_TRACKING_URI="http://localhost:5000"
+$env:PYTHONPATH="src"
+python -m mlops_finance.cli train
+```
+
+Then restart the API container so it loads `fraud-risk-model@champion` from the
+Compose MLflow service.
+
 Read [docs/architecture.md](docs/architecture.md) and [docs/tutorial.md](docs/tutorial.md).
 
 This is a teaching reference. Add secrets management, encryption, IAM, audit retention, explainability, fairness, approval workflows, and regulatory controls before production.

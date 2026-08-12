@@ -1,26 +1,59 @@
 services:
   postgres:
+    # PostgreSQL stores prediction audit rows written by the API.
     image: postgres:16
     environment:
       POSTGRES_USER: mlops
       POSTGRES_PASSWORD: mlops
       POSTGRES_DB: mlops
     ports: ["5432:5432"]
+
   mlflow:
-    image: ghcr.io/mlflow/mlflow:v2.20.2
-    command: mlflow server --host 0.0.0.0 --port 5000
+    # MLflow tracks experiments and serves the Model Registry API.
+    image: ghcr.io/mlflow/mlflow:v3.15.1
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --serve-artifacts
+      --artifacts-destination /mlflow/mlruns
+    volumes:
+      # Persist MLflow runs, registry metadata, and model artifacts on your machine.
+      - ./mlflow-docker:/mlflow
     ports: ["5000:5000"]
+    healthcheck:
+      # API should wait until MLflow can answer HTTP requests.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health').read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
   api:
     build: .
-    depends_on: [postgres]
+    depends_on:
+      postgres:
+        condition: service_started
+      mlflow:
+        condition: service_healthy
     environment:
       # The API uses this URL for prediction audit persistence.
       DATABASE_URL: postgresql://mlops:mlops@postgres:5432/mlops
+      # Load the model marked as champion in the MLflow Model Registry.
+      MODEL_SOURCE: mlflow
+      # Inside Docker, "mlflow" is the service name, not localhost.
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      REGISTERED_MODEL_NAME: fraud-risk-model
+      REGISTERED_MODEL_ALIAS: champion
     ports: ["8000:8000"]
+
   prometheus:
+    # Prometheus scrapes API metrics from /metrics for monitoring and alerting.
     image: prom/prometheus:v3.1.0
     volumes: ["./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml"]
     ports: ["9090:9090"]
+
   grafana:
+    # Grafana visualizes Prometheus metrics.
     image: grafana/grafana:11.4.0
     ports: ["3000:3000"]

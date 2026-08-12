@@ -4,5 +4,6 @@ data/*.csv
 models/
 mlruns/
 mlflow.db
+mlflow-docker/
 requirements-freeze.txt
 .env
