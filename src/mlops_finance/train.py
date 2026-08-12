@@ -18,6 +18,7 @@ from sklearn.model_selection import train_test_split
 
 from .config import settings
 from .features import MODEL_FEATURES, build_features
+from .registry import ModelMetrics, save_metrics
 from .validation import validate_training_data
 
 TEST_SIZE = 0.2
@@ -63,6 +64,12 @@ def train(path: str = "data/transactions.csv", output: str | None = None) -> flo
         recall = recall_score(y_test, predictions, zero_division=0)
         f1 = f1_score(y_test, predictions, zero_division=0)
         matrix = confusion_matrix(y_test, predictions)
+        metrics = ModelMetrics(
+            roc_auc=float(auc),
+            precision=float(precision),
+            recall=float(recall),
+            f1_score=float(f1),
+        )
 
         # Parameters explain how this run was produced. Metrics explain how well it did.
         mlflow.log_params(
@@ -106,4 +113,5 @@ def train(path: str = "data/transactions.csv", output: str | None = None) -> flo
 
     Path(target).parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(model, target)
+    save_metrics(target, metrics)
     return float(auc)
