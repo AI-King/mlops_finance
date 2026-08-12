@@ -1,11 +1,30 @@
 name: ci
+
+# Run this workflow when code is pushed or when a pull request is opened.
 on: [push, pull_request]
+
 jobs:
   test:
+    # GitHub hosts a temporary Linux machine for this job.
     runs-on: ubuntu-latest
+
     steps:
+      # Download your repository code into the temporary CI machine.
       - uses: actions/checkout@v4
+
+      # Install Python so the project can run in a clean environment.
       - uses: actions/setup-python@v5
-        with: {python-version: "3.12"}
+        with:
+          python-version: "3.12"
+
+      # Install all project dependencies, including pytest and ruff.
       - run: pip install -r requirements.txt
+
+      # Lint Python code: imports, likely bugs, and style rules.
+      - run: ruff check .
+
+      # Verify code formatting. CI should check formatting, not rewrite files.
+      - run: ruff format --check .
+
+      # Run automated tests.
       - run: python -m pytest
