@@ -1,0 +1,11 @@
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    # Grafana uses this datasource to query API metrics scraped by Prometheus.
+    type: prometheus
+    access: proxy
+    # Inside Docker Compose, "prometheus" is the service hostname.
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true

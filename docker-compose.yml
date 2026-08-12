@@ -57,4 +57,11 @@ services:
   grafana:
     # Grafana visualizes Prometheus metrics.
     image: grafana/grafana:11.4.0
+    volumes:
+      # Datasource provisioning tells Grafana how to reach Prometheus.
+      - ./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+      # Dashboard provisioning tells Grafana where dashboard definitions live.
+      - ./monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      # Dashboard JSON files define the actual panels you see in Grafana.
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning-dashboard-json
     ports: ["3000:3000"]
