@@ -1,0 +1,21 @@
+apiVersion: autoscaling/v2
+# HorizontalPodAutoscaler adjusts replicas from observed CPU utilization.
+kind: HorizontalPodAutoscaler
+metadata:
+  name: fraud-api
+spec:
+  # This points at the Deployment that should scale.
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: fraud-api
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        # CPU is a simple starter signal; production can add request-rate metrics.
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

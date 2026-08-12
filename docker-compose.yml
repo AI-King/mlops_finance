@@ -1,0 +1,26 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: mlops
+      POSTGRES_PASSWORD: mlops
+      POSTGRES_DB: mlops
+    ports: ["5432:5432"]
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.20.2
+    command: mlflow server --host 0.0.0.0 --port 5000
+    ports: ["5000:5000"]
+  api:
+    build: .
+    depends_on: [postgres]
+    environment:
+      # The API uses this URL for prediction audit persistence.
+      DATABASE_URL: postgresql://mlops:mlops@postgres:5432/mlops
+    ports: ["8000:8000"]
+  prometheus:
+    image: prom/prometheus:v3.1.0
+    volumes: ["./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml"]
+    ports: ["9090:9090"]
+  grafana:
+    image: grafana/grafana:11.4.0
+    ports: ["3000:3000"]

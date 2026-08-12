@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+# Deployment manages the desired number of identical API pods.
+kind: Deployment
+metadata: {name: fraud-api}
+spec:
+  # Three replicas provide availability during a pod restart.
+  replicas: 3
+  # Kubernetes uses this label selector to find the pods managed here.
+  selector: {matchLabels: {app: fraud-api}}
+  template:
+    # This label must match the selector above.
+    metadata: {labels: {app: fraud-api}}
+    spec:
+      containers:
+        - name: api
+          # Replace this image with the immutable image tag from CI.
+          image: your-registry/financial-mlops:latest
+          ports: [{containerPort: 8000}]
+          # Readiness controls whether traffic is sent to the pod.
+          readinessProbe: {httpGet: {path: /health/ready, port: 8000}}
+          # Liveness restarts a stuck process.
+          livenessProbe: {httpGet: {path: /health/live, port: 8000}}
+          # Requests reserve capacity; limits prevent one pod from exhausting a node.
+          resources: {requests: {cpu: 100m, memory: 256Mi}, limits: {cpu: 500m, memory: 512Mi}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: fraud-api}
+spec:
+  # The Service gives clients a stable virtual IP while pods change.
+  selector: {app: fraud-api}
+  ports: [{port: 80, targetPort: 8000}]
