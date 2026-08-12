@@ -50,6 +50,21 @@ python -m mlops_finance.cli train
 Then restart the API container so it loads `fraud-risk-model@champion` from the
 Compose MLflow service.
 
+For live dashboard traffic, keep Compose running and start the generator:
+
+```powershell
+python traffic_generator.py --mode normal --interval 1
+```
+
+Open another terminal to simulate feature drift:
+
+```powershell
+python traffic_generator.py --mode feature_drift --interval 1
+```
+
+Stop either generator with `Ctrl+C`. The generator continuously updates API
+metrics, PostgreSQL audit rows, and Prometheus/Grafana dashboards.
+
 Read [docs/architecture.md](docs/architecture.md) and [docs/tutorial.md](docs/tutorial.md).
 
 This is a teaching reference. Add secrets management, encryption, IAM, audit retention, explainability, fairness, approval workflows, and regulatory controls before production.
