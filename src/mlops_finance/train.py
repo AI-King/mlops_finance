@@ -19,6 +19,7 @@ from sklearn.model_selection import train_test_split
 from .config import settings
 from .features import MODEL_FEATURES, build_features
 from .metadata import current_git_sha
+from .mlflow_registry import REGISTERED_MODEL_NAME, alias_for_role, set_model_alias
 from .registry import ModelMetrics, save_metrics
 from .validation import validate_training_data
 
@@ -87,6 +88,7 @@ def train(
                 "label": "fraud",
                 "model_type": type(model).__name__,
                 "model_role": model_role,
+                "registered_model_name": REGISTERED_MODEL_NAME,
                 "max_iter": MAX_ITER,
                 "random_state": RANDOM_STATE,
                 "run_reason": run_reason,
@@ -126,7 +128,15 @@ def train(
         mlflow.log_table(confusion_frame, artifact_file="confusion_matrix.json")
 
         # Store the model inside MLflow so runs can be compared and promoted later.
-        mlflow.sklearn.log_model(model, name="model")
+        model_info = mlflow.sklearn.log_model(
+            model,
+            name="model",
+            registered_model_name=REGISTERED_MODEL_NAME,
+        )
+        set_model_alias(
+            model_info.registered_model_version,
+            alias_for_role(model_role),
+        )
 
     Path(target).parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(model, target)

@@ -4,6 +4,7 @@ import mlflow
 import pandas as pd
 
 from .config import settings
+from .mlflow_registry import promote_candidate_alias
 from .monitoring import drift_report
 from .registry import load_metrics, promote_candidate, should_promote
 from .train import train
@@ -65,5 +66,6 @@ def retrain_if_needed(
         )
     if promoted:
         promote_candidate(CANDIDATE_MODEL_PATH, settings.model_path)
+        promote_candidate_alias()
         return True
     return False
