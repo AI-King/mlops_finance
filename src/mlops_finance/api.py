@@ -5,7 +5,6 @@ import logging
 import time
 from contextlib import asynccontextmanager
 
-import joblib
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 from prometheus_client import Counter, Histogram, make_asgi_app
@@ -13,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from .config import settings
 from .features import build_features
+from .model_loader import load_ab_models
 from .rules import rule_based_decision
 
 REQUESTS = Counter("prediction_requests_total", "Prediction requests", ["variant"])
@@ -34,14 +34,7 @@ class Transaction(BaseModel):
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     """Load artifacts once per process; O(1) dictionary setup."""
-    try:
-        models["a"] = joblib.load(settings.model_path)
-        try:
-            models["b"] = joblib.load(settings.model_version_b_path)
-        except FileNotFoundError:
-            models["b"] = models["a"]
-    except FileNotFoundError:
-        models["a"] = None
+    models.update(load_ab_models())
     # Initialize audit storage once, not for every request. If PostgreSQL is
     # unavailable, readiness still depends only on the model and requests can
     # continue with an explicit audit-unavailable marker.
@@ -89,7 +82,7 @@ def predict(transaction: Transaction) -> dict[str, float | str]:
             raise HTTPException(status_code=503, detail="model unavailable")
         raw_features = pd.DataFrame([transaction.model_dump()])
         features = build_features(raw_features)
-        probability = float(model.predict_proba(features)[0][1])
+        probability = fraud_probability(model, features)
         # A probability near 0.5 means the model is uncertain. In that case,
         # use deterministic business rules instead of making an unreliable call.
         fallback_used = settings.fallback_low < probability < settings.fallback_high
@@ -130,3 +123,16 @@ def predict(transaction: Transaction) -> dict[str, float | str]:
             "reason": reason,
             "fallback_used": fallback_used,
         }
+
+
+def fraud_probability(model: object, features: pd.DataFrame) -> float:
+    """Return positive-class probability from sklearn or MLflow pyfunc models.
+
+    Complexity: model dependent. DSA: duck typing selects the prediction API.
+    """
+    if hasattr(model, "predict_proba"):
+        return float(model.predict_proba(features)[0][1])
+    prediction = model.predict(features)
+    if isinstance(prediction, pd.DataFrame):
+        return float(prediction.iloc[0, 1])
+    return float(prediction[0][1])
