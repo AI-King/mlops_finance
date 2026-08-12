@@ -23,6 +23,19 @@ python -m mlops_finance.cli train
 uvicorn mlops_finance.api:app --reload
 ```
 
+By default, the API serves the MLflow registered champion model:
+
+```text
+models:/fraud-risk-model@champion
+```
+
+Use local-file serving only when you explicitly want it:
+
+```powershell
+$env:MODEL_SOURCE="local"
+uvicorn mlops_finance.api:app --reload
+```
+
 Run `docker compose up --build` for PostgreSQL, MLflow, API, Prometheus, and Grafana. API: `localhost:8000`; MLflow: `localhost:5000`; Grafana: `localhost:3000` (`admin/admin`).
 
 Read [docs/architecture.md](docs/architecture.md) and [docs/tutorial.md](docs/tutorial.md).
