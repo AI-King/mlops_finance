@@ -16,6 +16,11 @@ from .model_loader import load_ab_models
 from .rules import rule_based_decision
 
 REQUESTS = Counter("prediction_requests_total", "Prediction requests", ["variant"])
+FALLBACKS = Counter(
+    "prediction_fallback_total",
+    "Prediction fallback decisions",
+    ["used"],
+)
 LATENCY = Histogram("prediction_latency_seconds", "Prediction latency")
 LOGGER = logging.getLogger(__name__)
 models: dict[str, object] = {}
@@ -96,6 +101,7 @@ def predict(transaction: Transaction) -> dict[str, float | str]:
             decision = "review" if probability >= 0.5 else "approve"
             reason = "model_high_confidence"
         REQUESTS.labels(variant).inc()
+        FALLBACKS.labels(str(fallback_used).lower()).inc()
         try:
             from .audit import write_prediction
 

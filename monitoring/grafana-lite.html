@@ -266,8 +266,16 @@
 
       <article class="panel small">
         <div class="title">Fallback Usage</div>
-        <div class="sub">Tracked in PostgreSQL audit table. Prometheus counter can be added next.</div>
-        <div class="stat">DB</div>
+        <div class="metric-row">
+          <span>used</span>
+          <div class="bar-wrap"><div class="bar b" id="fallbackTrueBar"></div></div>
+          <span class="value" id="fallbackTrue">0</span>
+        </div>
+        <div class="metric-row">
+          <span>not used</span>
+          <div class="bar-wrap"><div class="bar" id="fallbackFalseBar"></div></div>
+          <span class="value" id="fallbackFalse">0</span>
+        </div>
       </article>
 
       <article class="panel full">
@@ -282,6 +290,7 @@
             <tr><td>p95 latency</td><td>histogram_quantile(0.95, sum(rate(prediction_latency_seconds_bucket[5m])) by (le))</td></tr>
             <tr><td>API health</td><td>up{job="fraud-api"}</td></tr>
             <tr><td>Memory</td><td>process_resident_memory_bytes{job="fraud-api"}</td></tr>
+            <tr><td>Fallbacks</td><td>sum by (used) (prediction_fallback_total)</td></tr>
           </tbody>
         </table>
       </article>
@@ -317,6 +326,14 @@
       document.getElementById("totalPredictions").textContent = total === 1 && a + b === 0 ? "0" : String(a + b);
     }
 
+    function updateFallbackBars(used, notUsed) {
+      const total = Math.max(used + notUsed, 1);
+      document.getElementById("fallbackTrue").textContent = used;
+      document.getElementById("fallbackFalse").textContent = notUsed;
+      document.getElementById("fallbackTrueBar").style.width = `${(used / total) * 100}%`;
+      document.getElementById("fallbackFalseBar").style.width = `${(notUsed / total) * 100}%`;
+    }
+
     function drawLatency(value) {
       history.push(value);
       if (history.length > 30) history.shift();
@@ -332,6 +349,12 @@
       document.getElementById("latencyLine").setAttribute("d", line);
       document.getElementById("latencyArea").setAttribute("d", area);
       document.getElementById("p95Latency").textContent = value.toFixed(4);
+    }
+
+    async function latencyValue() {
+      const p95 = numeric(await query("histogram_quantile(0.95, sum(rate(prediction_latency_seconds_bucket[5m])) by (le))"), NaN);
+      if (Number.isFinite(p95)) return p95;
+      return numeric(await query("sum(prediction_latency_seconds_sum) / sum(prediction_latency_seconds_count)"));
     }
 
     async function refresh() {
@@ -350,11 +373,20 @@
         healthEl.textContent = health === 1 ? "UP" : "DOWN";
         healthEl.className = `health ${health === 1 ? "ok" : "bad"}`;
 
-        const latency = numeric(await query("histogram_quantile(0.95, sum(rate(prediction_latency_seconds_bucket[5m])) by (le))"));
+        const latency = await latencyValue();
         drawLatency(latency);
 
         const memory = numeric(await query('process_resident_memory_bytes{job="fraud-api"}'));
         document.getElementById("memoryUsage").textContent = `${(memory / 1024 / 1024).toFixed(0)} MB`;
+
+        const fallbacks = await query("sum by (used) (prediction_fallback_total)");
+        let used = 0;
+        let notUsed = 0;
+        for (const item of fallbacks) {
+          if (item.metric.used === "true") used = Number(item.value[1]);
+          if (item.metric.used === "false") notUsed = Number(item.value[1]);
+        }
+        updateFallbackBars(used, notUsed);
         setHealth(true);
       } catch (error) {
         setHealth(false);
