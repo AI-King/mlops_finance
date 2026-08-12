@@ -18,6 +18,7 @@ from sklearn.model_selection import train_test_split
 
 from .config import settings
 from .features import MODEL_FEATURES, build_features
+from .metadata import current_git_sha
 from .registry import ModelMetrics, save_metrics
 from .validation import validate_training_data
 
@@ -26,7 +27,13 @@ RANDOM_STATE = 42
 MAX_ITER = 120
 
 
-def train(path: str = "data/transactions.csv", output: str | None = None) -> float:
+def train(
+    path: str = "data/transactions.csv",
+    output: str | None = None,
+    model_role: str = "production",
+    run_reason: str = "manual_training",
+    extra_tags: dict[str, str] | None = None,
+) -> float:
     """Train, evaluate, track, and save a classifier.
 
     Complexity: roughly O(n * t * log n), driven by tree training. DSA: tree nodes.
@@ -76,15 +83,25 @@ def train(path: str = "data/transactions.csv", output: str | None = None) -> flo
             {
                 "dataset_path": path,
                 "features": ",".join(MODEL_FEATURES),
+                "git_commit_sha": current_git_sha(),
                 "label": "fraud",
                 "model_type": type(model).__name__,
+                "model_role": model_role,
                 "max_iter": MAX_ITER,
                 "random_state": RANDOM_STATE,
+                "run_reason": run_reason,
                 "test_size": TEST_SIZE,
                 "train_rows": len(x_train),
                 "test_rows": len(x_test),
                 "total_rows": len(frame),
                 "model_output_path": target,
+            }
+        )
+        mlflow.set_tags(
+            {
+                "model_role": model_role,
+                "run_reason": run_reason,
+                **(extra_tags or {}),
             }
         )
         mlflow.log_metrics(
