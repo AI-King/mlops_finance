@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Financial Fraud MLOps Dashboard</title>
+  <style>
+    :root {
+      --bg: #0b1117;
+      --panel: #111922;
+      --panel-2: #151f2b;
+      --border: #273444;
+      --text: #e7edf4;
+      --muted: #91a4b7;
+      --blue: #33a2ff;
+      --green: #4ade80;
+      --yellow: #fbbf24;
+      --red: #fb7185;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, Segoe UI, Arial, sans-serif;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      background: #0e151d;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 650;
+    }
+
+    .sub {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .status {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--yellow);
+    }
+
+    main {
+      padding: 20px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 16px;
+    }
+
+    .panel {
+      background: linear-gradient(180deg, var(--panel), var(--panel-2));
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      min-height: 220px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    }
+
+    .wide {
+      grid-column: span 6;
+    }
+
+    .small {
+      grid-column: span 3;
+    }
+
+    .full {
+      grid-column: span 12;
+    }
+
+    .title {
+      color: #c9d7e5;
+      font-size: 14px;
+      margin-bottom: 14px;
+    }
+
+    .stat {
+      font-size: 42px;
+      font-weight: 700;
+      color: var(--blue);
+      margin-top: 42px;
+    }
+
+    .metric-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 12px 0;
+    }
+
+    .bar-wrap {
+      flex: 1;
+      height: 14px;
+      background: #0b121a;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .bar {
+      height: 100%;
+      background: var(--blue);
+      width: 0%;
+      transition: width 0.25s ease;
+    }
+
+    .bar.b {
+      background: var(--green);
+    }
+
+    .value {
+      min-width: 52px;
+      text-align: right;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+
+    svg {
+      width: 100%;
+      height: 150px;
+      display: block;
+      overflow: visible;
+    }
+
+    .axis {
+      stroke: #344457;
+      stroke-width: 1;
+    }
+
+    .line {
+      fill: none;
+      stroke: var(--blue);
+      stroke-width: 2.5;
+    }
+
+    .area {
+      fill: rgba(51, 162, 255, 0.12);
+    }
+
+    .health {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 48px;
+      font-size: 32px;
+      font-weight: 700;
+    }
+
+    .ok {
+      color: var(--green);
+    }
+
+    .bad {
+      color: var(--red);
+    }
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      font-size: 13px;
+    }
+
+    .table th,
+    .table td {
+      border-bottom: 1px solid var(--border);
+      padding: 10px 8px;
+      text-align: left;
+    }
+
+    .table th {
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    @media (max-width: 900px) {
+      .wide,
+      .small {
+        grid-column: span 12;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Financial Fraud MLOps Dashboard</h1>
+      <div class="sub">Grafana-lite view using live Prometheus metrics</div>
+    </div>
+    <div class="status">
+      <span class="dot" id="statusDot"></span>
+      <span id="statusText">Loading Prometheus...</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="grid">
+      <article class="panel wide">
+        <div class="title">Prediction Requests by A/B Variant</div>
+        <div class="metric-row">
+          <span>variant a</span>
+          <div class="bar-wrap"><div class="bar" id="barA"></div></div>
+          <span class="value" id="variantA">0</span>
+        </div>
+        <div class="metric-row">
+          <span>variant b</span>
+          <div class="bar-wrap"><div class="bar b" id="barB"></div></div>
+          <span class="value" id="variantB">0</span>
+        </div>
+      </article>
+
+      <article class="panel small">
+        <div class="title">Total Predictions</div>
+        <div class="stat" id="totalPredictions">0</div>
+      </article>
+
+      <article class="panel small">
+        <div class="title">API Scrape Health</div>
+        <div class="health" id="apiHealth">?</div>
+      </article>
+
+      <article class="panel wide">
+        <div class="title">Prediction Latency</div>
+        <svg viewBox="0 0 520 150" aria-label="latency chart">
+          <line class="axis" x1="0" y1="130" x2="520" y2="130"></line>
+          <line class="axis" x1="0" y1="10" x2="0" y2="130"></line>
+          <path class="area" id="latencyArea"></path>
+          <path class="line" id="latencyLine"></path>
+        </svg>
+        <div class="sub">p95 latency: <span id="p95Latency">0</span>s</div>
+      </article>
+
+      <article class="panel small">
+        <div class="title">API Memory Usage</div>
+        <div class="stat" id="memoryUsage">0 MB</div>
+      </article>
+
+      <article class="panel small">
+        <div class="title">Fallback Usage</div>
+        <div class="sub">Tracked in PostgreSQL audit table. Prometheus counter can be added next.</div>
+        <div class="stat">DB</div>
+      </article>
+
+      <article class="panel full">
+        <div class="title">Useful PromQL Queries</div>
+        <table class="table">
+          <thead>
+            <tr><th>Panel</th><th>PromQL</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>A/B requests</td><td>sum by (variant) (prediction_requests_total)</td></tr>
+            <tr><td>Total predictions</td><td>sum(prediction_requests_total)</td></tr>
+            <tr><td>p95 latency</td><td>histogram_quantile(0.95, sum(rate(prediction_latency_seconds_bucket[5m])) by (le))</td></tr>
+            <tr><td>API health</td><td>up{job="fraud-api"}</td></tr>
+            <tr><td>Memory</td><td>process_resident_memory_bytes{job="fraud-api"}</td></tr>
+          </tbody>
+        </table>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    const prometheus = "http://localhost:9090/api/v1/query?query=";
+    const history = [];
+
+    async function query(promql) {
+      const response = await fetch(prometheus + encodeURIComponent(promql));
+      const payload = await response.json();
+      return payload.data.result;
+    }
+
+    function numeric(result, fallback = 0) {
+      if (!result || !result.length) return fallback;
+      return Number(result[0].value[1]);
+    }
+
+    function setHealth(ok) {
+      document.getElementById("statusDot").style.background = ok ? "var(--green)" : "var(--red)";
+      document.getElementById("statusText").textContent = ok ? "Live Prometheus data" : "Prometheus unavailable";
+    }
+
+    function updateBars(a, b) {
+      const total = Math.max(a + b, 1);
+      document.getElementById("variantA").textContent = a;
+      document.getElementById("variantB").textContent = b;
+      document.getElementById("barA").style.width = `${(a / total) * 100}%`;
+      document.getElementById("barB").style.width = `${(b / total) * 100}%`;
+      document.getElementById("totalPredictions").textContent = total === 1 && a + b === 0 ? "0" : String(a + b);
+    }
+
+    function drawLatency(value) {
+      history.push(value);
+      if (history.length > 30) history.shift();
+      const max = Math.max(...history, 0.05);
+      const points = history.map((item, index) => {
+        const x = history.length === 1 ? 0 : (index / (history.length - 1)) * 520;
+        const y = 130 - (item / max) * 110;
+        return [x, y];
+      });
+      if (!points.length) return;
+      const line = points.map(([x, y], index) => `${index === 0 ? "M" : "L"} ${x} ${y}`).join(" ");
+      const area = `${line} L 520 130 L 0 130 Z`;
+      document.getElementById("latencyLine").setAttribute("d", line);
+      document.getElementById("latencyArea").setAttribute("d", area);
+      document.getElementById("p95Latency").textContent = value.toFixed(4);
+    }
+
+    async function refresh() {
+      try {
+        const variants = await query("sum by (variant) (prediction_requests_total)");
+        let a = 0;
+        let b = 0;
+        for (const item of variants) {
+          if (item.metric.variant === "a") a = Number(item.value[1]);
+          if (item.metric.variant === "b") b = Number(item.value[1]);
+        }
+        updateBars(a, b);
+
+        const health = numeric(await query('up{job="fraud-api"}'));
+        const healthEl = document.getElementById("apiHealth");
+        healthEl.textContent = health === 1 ? "UP" : "DOWN";
+        healthEl.className = `health ${health === 1 ? "ok" : "bad"}`;
+
+        const latency = numeric(await query("histogram_quantile(0.95, sum(rate(prediction_latency_seconds_bucket[5m])) by (le))"));
+        drawLatency(latency);
+
+        const memory = numeric(await query('process_resident_memory_bytes{job="fraud-api"}'));
+        document.getElementById("memoryUsage").textContent = `${(memory / 1024 / 1024).toFixed(0)} MB`;
+        setHealth(true);
+      } catch (error) {
+        setHealth(false);
+      }
+    }
+
+    refresh();
+    setInterval(refresh, 10000);
+  </script>
+</body>
+</html>
