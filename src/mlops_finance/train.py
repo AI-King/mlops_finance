@@ -18,6 +18,7 @@ from sklearn.model_selection import train_test_split
 
 from .config import settings
 from .data import FEATURES
+from .validation import validate_training_data
 
 TEST_SIZE = 0.2
 RANDOM_STATE = 42
@@ -33,6 +34,7 @@ def train(path: str = "data/transactions.csv", output: str | None = None) -> flo
 
     # Read the prepared training dataset. Complexity: O(n), one pass over rows.
     frame = pd.read_csv(path)
+    validate_training_data(frame)
 
     # Split features (X) from label (y). DSA: DataFrame column selection uses indexed
     # column lookup, then creates tabular arrays for model training.
