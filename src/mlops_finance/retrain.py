@@ -6,8 +6,9 @@ from .monitoring import drift_report
 from .train import train
 
 
-def retrain_if_needed(reference_path: str, current_path: str,
-                      threshold: float = 0.25) -> bool:
+def retrain_if_needed(
+    reference_path: str, current_path: str, threshold: float = 0.25
+) -> bool:
     """Retrain when any feature PSI crosses threshold.
 
     Complexity: O(f * n log b), where f is feature count. DSA: dictionary

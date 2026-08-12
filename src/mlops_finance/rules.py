@@ -1,8 +1,9 @@
 """Deterministic fallback rules used when model confidence is low."""
 
 
-def rule_based_decision(amount: float, merchant_risk: float,
-                        velocity_24h: int) -> tuple[str, str]:
+def rule_based_decision(
+    amount: float, merchant_risk: float, velocity_24h: int
+) -> tuple[str, str]:
     """Return a conservative decision and reason code.
 
     Complexity: O(1) time and O(1) space. DSA: a short ordered decision tree.

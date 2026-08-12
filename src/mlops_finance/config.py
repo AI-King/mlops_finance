@@ -1,9 +1,11 @@
 """Environment-backed application settings."""
+
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
     """Runtime settings. Complexity and DSA: O(1) key/value lookup."""
+
     model_path: str = "models/fraud_model.joblib"
     model_version_b_path: str = "models/fraud_model_b.joblib"
     ab_test_percent: int = 50

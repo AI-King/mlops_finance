@@ -1,15 +1,23 @@
 """Training and MLflow tracking."""
+
 from pathlib import Path
+
 import joblib
 import mlflow
 import mlflow.sklearn
 import pandas as pd
 from sklearn.ensemble import HistGradientBoostingClassifier
-from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score, roc_auc_score
+from sklearn.metrics import (
+    confusion_matrix,
+    f1_score,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+)
 from sklearn.model_selection import train_test_split
+
 from .config import settings
 from .data import FEATURES
-
 
 TEST_SIZE = 0.2
 RANDOM_STATE = 42
@@ -54,29 +62,33 @@ def train(path: str = "data/transactions.csv", output: str | None = None) -> flo
         matrix = confusion_matrix(y_test, predictions)
 
         # Parameters explain how this run was produced. Metrics explain how well it did.
-        mlflow.log_params({
-            "dataset_path": path,
-            "features": ",".join(FEATURES),
-            "label": "fraud",
-            "model_type": type(model).__name__,
-            "max_iter": MAX_ITER,
-            "random_state": RANDOM_STATE,
-            "test_size": TEST_SIZE,
-            "train_rows": len(x_train),
-            "test_rows": len(x_test),
-            "total_rows": len(frame),
-            "model_output_path": target,
-        })
-        mlflow.log_metrics({
-            "roc_auc": auc,
-            "precision": precision,
-            "recall": recall,
-            "f1_score": f1,
-            "true_negatives": int(matrix[0][0]),
-            "false_positives": int(matrix[0][1]),
-            "false_negatives": int(matrix[1][0]),
-            "true_positives": int(matrix[1][1]),
-        })
+        mlflow.log_params(
+            {
+                "dataset_path": path,
+                "features": ",".join(FEATURES),
+                "label": "fraud",
+                "model_type": type(model).__name__,
+                "max_iter": MAX_ITER,
+                "random_state": RANDOM_STATE,
+                "test_size": TEST_SIZE,
+                "train_rows": len(x_train),
+                "test_rows": len(x_test),
+                "total_rows": len(frame),
+                "model_output_path": target,
+            }
+        )
+        mlflow.log_metrics(
+            {
+                "roc_auc": auc,
+                "precision": precision,
+                "recall": recall,
+                "f1_score": f1,
+                "true_negatives": int(matrix[0][0]),
+                "false_positives": int(matrix[0][1]),
+                "false_negatives": int(matrix[1][0]),
+                "true_positives": int(matrix[1][1]),
+            }
+        )
 
         # Confusion matrix is also saved as a readable table for audits and reports.
         confusion_frame = pd.DataFrame(

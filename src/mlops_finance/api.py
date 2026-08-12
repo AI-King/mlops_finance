@@ -1,21 +1,27 @@
 """FastAPI serving with health checks, metrics, and deterministic A/B tests."""
+
 import hashlib
+import logging
 import time
 from contextlib import asynccontextmanager
+
 import joblib
 from fastapi import FastAPI, HTTPException
 from prometheus_client import Counter, Histogram, make_asgi_app
 from pydantic import BaseModel, Field
+
 from .config import settings
 from .rules import rule_based_decision
 
 REQUESTS = Counter("prediction_requests_total", "Prediction requests", ["variant"])
 LATENCY = Histogram("prediction_latency_seconds", "Prediction latency")
+LOGGER = logging.getLogger(__name__)
 models: dict[str, object] = {}
 
 
 class Transaction(BaseModel):
     """Validated transaction payload."""
+
     amount: float = Field(gt=0)
     merchant_risk: float = Field(ge=0, le=1)
     customer_age: float = Field(ge=18, le=100)
@@ -39,9 +45,10 @@ async def lifespan(_: FastAPI):
     # continue with an explicit audit-unavailable marker.
     try:
         from .audit import init_audit_table
+
         init_audit_table()
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        LOGGER.warning("Audit table initialization failed: %s", exc)
     yield
 
 
@@ -71,38 +78,59 @@ def predict(transaction: Transaction) -> dict[str, float | str]:
     """
     started = time.perf_counter()
     with LATENCY.time():
-        bucket = int(hashlib.md5(transaction.customer_id.encode()).hexdigest(), 16) % 100
+        bucket = (
+            int(hashlib.md5(transaction.customer_id.encode()).hexdigest(), 16) % 100
+        )
         variant = "b" if bucket < settings.ab_test_percent else "a"
         model = models.get(variant) or models.get("a")
         if model is None:
             raise HTTPException(status_code=503, detail="model unavailable")
-        values = [[transaction.amount, transaction.merchant_risk,
-                   transaction.customer_age, transaction.velocity_24h]]
+        values = [
+            [
+                transaction.amount,
+                transaction.merchant_risk,
+                transaction.customer_age,
+                transaction.velocity_24h,
+            ]
+        ]
         probability = float(model.predict_proba(values)[0][1])
         # A probability near 0.5 means the model is uncertain. In that case,
         # use deterministic business rules instead of making an unreliable call.
         fallback_used = settings.fallback_low < probability < settings.fallback_high
         if fallback_used:
-            decision, reason = rule_based_decision(transaction.amount,
-                                                   transaction.merchant_risk,
-                                                   transaction.velocity_24h)
+            decision, reason = rule_based_decision(
+                transaction.amount,
+                transaction.merchant_risk,
+                transaction.velocity_24h,
+            )
         else:
             decision = "review" if probability >= 0.5 else "approve"
             reason = "model_high_confidence"
         REQUESTS.labels(variant).inc()
         try:
             from .audit import write_prediction
+
             request_id = write_prediction(
-                customer_hash=hashlib.sha256(transaction.customer_id.encode()).hexdigest(),
-                model_version=settings.model_version, variant=variant,
-                probability=probability, decision=decision,
+                customer_hash=hashlib.sha256(
+                    transaction.customer_id.encode()
+                ).hexdigest(),
+                model_version=settings.model_version,
+                variant=variant,
+                probability=probability,
+                decision=decision,
                 fallback_used=fallback_used,
                 latency_ms=(time.perf_counter() - started) * 1000,
             )
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
             # Availability first: an audit database outage must not take down
             # online inference. Alert on this exception in production.
+            LOGGER.warning("Audit write failed: %s", exc)
             request_id = "audit-unavailable"
-        return {"request_id": request_id, "fraud_probability": probability,
-                "variant": variant, "decision": decision, "reason": reason,
-                "fallback_used": fallback_used}
+        return {
+            "request_id": request_id,
+            "fraud_probability": probability,
+            "variant": variant,
+            "decision": decision,
+            "reason": reason,
+            "fallback_used": fallback_used,
+        }

@@ -1,12 +1,11 @@
 """PostgreSQL audit persistence for regulated model decisions."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import psycopg
 
 from .config import settings
-
 
 CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS prediction_audit (
@@ -34,9 +33,16 @@ def init_audit_table() -> None:
         connection.execute(CREATE_TABLE_SQL)
 
 
-def write_prediction(*, customer_hash: str, model_version: str, variant: str,
-                     probability: float, decision: str, fallback_used: bool,
-                     latency_ms: float) -> str:
+def write_prediction(
+    *,
+    customer_hash: str,
+    model_version: str,
+    variant: str,
+    probability: float,
+    decision: str,
+    fallback_used: bool,
+    latency_ms: float,
+) -> str:
     """Write one auditable prediction and return its UUID.
 
     DSA: UUID is a constant-time unique identifier; SQL indexing makes lookup
@@ -48,8 +54,18 @@ def write_prediction(*, customer_hash: str, model_version: str, variant: str,
          probability, decision, fallback_used, latency_ms)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"""
     with psycopg.connect(settings.database_url, connect_timeout=2) as connection:
-        connection.execute(query, (request_id, datetime.now(timezone.utc),
-                                    customer_hash, model_version, variant,
-                                    probability, decision, fallback_used,
-                                    latency_ms))
+        connection.execute(
+            query,
+            (
+                request_id,
+                datetime.now(UTC),
+                customer_hash,
+                model_version,
+                variant,
+                probability,
+                decision,
+                fallback_used,
+                latency_ms,
+            ),
+        )
     return request_id

@@ -1,12 +1,16 @@
 """Synthetic financial transactions and controlled drift."""
+
 from pathlib import Path
+
 import numpy as np
 import pandas as pd
 
 FEATURES = ["amount", "merchant_risk", "customer_age", "velocity_24h"]
 
 
-def make_data(rows: int = 10_000, seed: int = 42, drift: str = "normal") -> pd.DataFrame:
+def make_data(
+    rows: int = 10_000, seed: int = 42, drift: str = "normal"
+) -> pd.DataFrame:
     """Create labels with optional feature or concept drift.
 
     Complexity: O(n) time/space. DSA: vectorized NumPy arrays avoid a Python loop.
@@ -23,9 +27,15 @@ def make_data(rows: int = 10_000, seed: int = 42, drift: str = "normal") -> pd.D
     if drift == "concept_drift":
         score = 0.002 * amount + 5 * risk + 0.35 * velocity - 2.4
     probability = 1 / (1 + np.exp(-score))
-    return pd.DataFrame({"amount": amount, "merchant_risk": risk,
-                         "customer_age": age, "velocity_24h": velocity,
-                         "fraud": rng.binomial(1, probability)})
+    return pd.DataFrame(
+        {
+            "amount": amount,
+            "merchant_risk": risk,
+            "customer_age": age,
+            "velocity_24h": velocity,
+            "fraud": rng.binomial(1, probability),
+        }
+    )
 
 
 def save_data(frame: pd.DataFrame, path: str = "data/transactions.csv") -> None:
